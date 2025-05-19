@@ -1,15 +1,19 @@
-<Application xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="AvaloniaImageSelect.App"
-             xmlns:local="using:AvaloniaImageSelect"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+<Application
+    x:Class="AvaloniaImageSelect.App"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:AvaloniaImageSelect"
+    xmlns:semi="https://irihi.tech/semi"
+    xmlns:u-semi="https://irihi.tech/ursa/themes/semi"
+    RequestedThemeVariant="Default">
+    <!--  "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options.  -->
 
     <Application.DataTemplates>
-        <local:ViewLocator/>
+        <local:ViewLocator />
     </Application.DataTemplates>
-  
+
     <Application.Styles>
-        <FluentTheme />
+        <semi:SemiTheme Locale="zh-CN" />
+        <u-semi:SemiTheme Locale="zh-CN" />
     </Application.Styles>
 </Application>
