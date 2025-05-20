@@ -20,16 +20,19 @@
         -->
         <vm:MainWindowViewModel />
     </Design.DataContext>
-
-    <DockPanel>
+    <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_F_菜单">
-                <MenuItem Header="_S_设置" />
+                <MenuItem Command="{Binding MenuSettingCommand}" Header="_S_设置" />
                 <Separator />
                 <MenuItem Header="_E_退出" />
             </MenuItem>
         </Menu>
-        <TextBlock />
+        <Grid DockPanel.Dock="Bottom">
+
+            <u:OverlayDialogHost HostId="LocalHost" />
+
+        </Grid>
     </DockPanel>
 
 </Window>
