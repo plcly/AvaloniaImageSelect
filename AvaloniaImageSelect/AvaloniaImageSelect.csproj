@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
@@ -35,6 +34,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Irihi.Ursa" Version="1.11.0" />
     <PackageReference Include="Irihi.Ursa.Themes.Semi" Version="1.11.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.5" />
     <PackageReference Include="Semi.Avalonia" Version="11.2.1.7" />
+    <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
   </ItemGroup>
 </Project>

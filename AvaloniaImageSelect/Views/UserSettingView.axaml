@@ -13,7 +13,7 @@
     <Grid ColumnDefinitions="*,100">
         <TextBox
             Width="400"
-            Text="{Binding ImagePath}"
+            Text="{Binding ImageFolder}"
             Watermark="请输入路径" />
         <Button
             Grid.Column="1"

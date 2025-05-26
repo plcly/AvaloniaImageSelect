@@ -6,13 +6,34 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:u="https://irihi.tech/ursa"
     xmlns:vm="using:AvaloniaImageSelect.ViewModels"
-    Title="AvaloniaImageSelect"
+    Title="{Binding Title}"
     d:DesignHeight="450"
     d:DesignWidth="800"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/image.ico"
     mc:Ignorable="d">
-
+    <!--<Window.Resources>
+        <Animation
+            x:Key="NextImageAnimation"
+            x:SetterTargetType="u:ImageViewer"
+            Easing="ExponentialEaseOut"
+            IterationCount="1"
+            Duration="0:0:0.05">
+            <KeyFrame Cue="0%">
+                <Setter Property="TranslateTransform.X" Value="400" />
+            </KeyFrame>
+        </Animation>
+        <Animation
+            x:Key="PreImageAnimation"
+            x:SetterTargetType="u:ImageViewer"
+            Easing="ExponentialEaseOut"
+            IterationCount="1"
+            Duration="0:0:0.05">
+            <KeyFrame Cue="0%">
+                <Setter Property="TranslateTransform.X" Value="-400" />
+            </KeyFrame>
+        </Animation>
+    </Window.Resources>-->
     <Design.DataContext>
         <!--
             This only sets the DataContext for the previewer in an IDE,
@@ -22,16 +43,28 @@
     </Design.DataContext>
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_F_菜单">
-                <MenuItem Command="{Binding MenuSettingCommand}" Header="_S_设置" />
+            <MenuItem Header="菜单">
+                <MenuItem Command="{Binding MenuSettingCommand}" Header="设置" />
                 <Separator />
-                <MenuItem Header="_E_退出" />
+                <MenuItem Header="退出" />
             </MenuItem>
         </Menu>
         <Grid DockPanel.Dock="Bottom">
-
+            <u:ImageViewer Name="ImgView" Source="{Binding CurrentImage}">
+                <u:ImageViewer.KeyBindings>
+                    <KeyBinding
+                        Command="{Binding PreImageCommand}"
+                        CommandParameter="{Binding #ImgView}"
+                        Gesture="Left">
+                    </KeyBinding>
+                    <KeyBinding
+                        Command="{Binding NextImageCommand}"
+                        CommandParameter="{Binding #ImgView}"
+                        Gesture="Right">
+                    </KeyBinding>
+                </u:ImageViewer.KeyBindings>
+            </u:ImageViewer>
             <u:OverlayDialogHost HostId="LocalHost" />
-
         </Grid>
     </DockPanel>
 
