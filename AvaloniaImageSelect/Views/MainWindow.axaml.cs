@@ -23,6 +23,12 @@ namespace AvaloniaImageSelect.Views
             ImgView.AttachedToVisualTree += (s, e) => ImgView.Focus();
         }
 
+        private void Window_Closing(object? sender, Avalonia.Controls.WindowClosingEventArgs e)
+        {
+            var vm = DataContext as MainWindowViewModel;
+            vm.Closing();
+        }
+
 
         //protected override void OnLoaded(RoutedEventArgs e)
         //{

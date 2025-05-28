@@ -6,18 +6,34 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:u="https://irihi.tech/ursa"
     xmlns:vm="using:AvaloniaImageSelect.ViewModels"
-    d:DesignHeight="200"
+    d:DesignHeight="300"
     d:DesignWidth="600"
     x:DataType="vm:UserSettingViewModel"
     mc:Ignorable="d">
-    <Grid ColumnDefinitions="*,100">
+    <Grid RowDefinitions="*,*,*,*">
         <TextBox
             Width="400"
+            Margin="2"
             Text="{Binding ImageFolder}"
-            Watermark="请输入路径" />
+            Watermark="请输入读取图片文件夹路径">
+        </TextBox>
+        <TextBox
+            Grid.Row="1"
+            Width="400"
+            Margin="2"
+            Text="{Binding DestinationImageFolder}"
+            Watermark="请输入目标图片文件夹路径">
+        </TextBox>
+        <CheckBox
+            Grid.Row="2"
+            Margin="2"
+            IsChecked="{Binding DeleteWhenClose}">
+            关闭窗口时是否复制和删除图片
+        </CheckBox>
         <Button
-            Grid.Column="1"
+            Grid.Row="3"
             Command="{Binding PathSaveCommand}"
-            Content="确定" />
+            Content="确定">
+        </Button>
     </Grid>
 </UserControl>

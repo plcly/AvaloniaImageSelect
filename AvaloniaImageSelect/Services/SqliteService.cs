@@ -20,8 +20,10 @@ namespace AvaloniaImageSelect.Services
 
         public bool InsertOrUpdateSetting(DbSetting setting)
         {
-            if (_sqliteDb.Table<DbSetting>().Any(p => p.Id == setting.Id))
+            if (_sqliteDb.Table<DbSetting>().Any(p => p.ConfigName == setting.ConfigName))
             {
+                var existingSetting = _sqliteDb.Table<DbSetting>().FirstOrDefault(p => p.ConfigName == setting.ConfigName);
+                setting.Id = existingSetting.Id;
                 return _sqliteDb.Update(setting) > 0;
             }
             else
@@ -34,6 +36,23 @@ namespace AvaloniaImageSelect.Services
         {
             return _sqliteDb.Table<DbSetting>()
                 .FirstOrDefault(p => p.ConfigName == "ImageFolder")?.ConfigValue ?? string.Empty;
+        }
+
+        public string GetDestinationImageFolder()
+        {
+            return _sqliteDb.Table<DbSetting>()
+                .FirstOrDefault(p => p.ConfigName == "DestinationImageFolder")?.ConfigValue ?? string.Empty;
+        }
+
+        public bool GetDeleteWhenClose()
+        {
+            var deleteWhenClose =  _sqliteDb.Table<DbSetting>()
+                .FirstOrDefault(p => p.ConfigName == "DeleteWhenClose")?.ConfigValue ?? string.Empty;
+            if (!bool.TryParse(deleteWhenClose, out bool result))
+            {
+                return false;
+            }
+            return result;
         }
     }
 }

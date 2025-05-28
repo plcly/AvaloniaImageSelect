@@ -9,6 +9,7 @@ using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualBasic.FileIO;
 using Ursa.Controls;
 
 namespace AvaloniaImageSelect.ViewModels
@@ -16,9 +17,11 @@ namespace AvaloniaImageSelect.ViewModels
     public partial class MainWindowViewModel : ViewModelBase
     {
         private readonly SqliteService _service;
+        private string _imageFolder;
+        private string _imageDestinationFolder;
         private Dictionary<int, string> _images = new();
         private int _currentIndex = 1;
-        public List<Bitmap> ImageList { get; set; }
+        private bool _deleteWhenClose;
 
         //public Animation NextAnimation { get; set; }
         //public Animation PreAnimation { get; set; }
@@ -26,25 +29,33 @@ namespace AvaloniaImageSelect.ViewModels
         public MainWindowViewModel()
         {
             _service = App.Provider.GetRequiredService<SqliteService>();
-            var folder = _service.GetImageFolder();
-            if (Directory.Exists(folder))
+            _imageFolder = _service.GetImageFolder();
+            if (!string.IsNullOrEmpty(_imageFolder))
             {
-                var files = Directory.GetFiles(folder, "*.jpg");
-                if (files.Length > 0)
+                _imageDestinationFolder = _service.GetDestinationImageFolder();
+                _deleteWhenClose = _service.GetDeleteWhenClose();
+                if (Directory.Exists(_imageFolder))
                 {
-                    for (int i = 0; i < files.Length; i++)
+                    var files = Directory.GetFiles(_imageFolder, "*.JPG");
+                    if (files.Length > 0)
                     {
-                        _images.Add(i + 1, files[i]);
+                        for (int i = 0; i < files.Length; i++)
+                        {
+                            _images.Add(i + 1, files[i]);
+                        }
                     }
                 }
+                CurrentImage = new Bitmap(_images[1]);
+                SetTitle();
+                PrefixDate = DateTime.Now.ToString("yyyyMMdd");
             }
-
-            CurrentImage = new Bitmap(_images[1]);
-            SetTitle();
         }
 
         [ObservableProperty]
         private Bitmap _currentImage;
+        
+        [ObservableProperty]
+        private string _prefixDate;
 
 
         [ObservableProperty]
@@ -106,6 +117,52 @@ namespace AvaloniaImageSelect.ViewModels
             GC.Collect();
             //PreAnimation.RunAsync(image);
             SetTitle();
+        }
+        
+        [RelayCommand]
+        private void KeyEnter()
+        {
+            var fileName = SetCurrentImageFileName();
+            File.Copy(_images[_currentIndex],fileName, true);
+            MessageBox.ShowAsync("已添加当前照片", "", MessageBoxIcon.Success, MessageBoxButton.OK);
+        }
+
+        private string SetCurrentImageFileName()
+        {
+            var files = Directory.GetFiles(_imageFolder, _prefixDate + "*.JPG", System.IO.SearchOption.TopDirectoryOnly);
+            if (files.Length == 0)
+            {
+                return System.IO.Path.Combine(_imageFolder, _prefixDate + ".JPG");
+            }
+            return System.IO.Path.Combine(_imageFolder, _prefixDate + "-" + (files.Length) + ".JPG");
+        }
+
+        public void Closing()
+        {
+            if (_deleteWhenClose)
+            {
+                var allFile = Directory.GetFiles(_imageFolder);
+                foreach (var file in allFile)
+                {
+                    var fileName = System.IO.Path.GetFileName(file);
+                    if (fileName.StartsWith(_prefixDate))
+                    {
+                        var destFileName = System.IO.Path.Combine(_imageDestinationFolder, fileName);
+                        if (!Directory.Exists(_imageDestinationFolder))
+                        {
+                            Directory.CreateDirectory(_imageDestinationFolder);
+                        }
+                        if (!File.Exists(destFileName))
+                        {
+                            File.Copy(file, destFileName);
+                        }
+                    }
+                    else
+                    {
+                        FileSystem.DeleteFile(file, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                    }
+                }
+            }
         }
     }
 }
