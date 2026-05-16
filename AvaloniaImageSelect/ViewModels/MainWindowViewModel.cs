@@ -1,4 +1,5 @@
-﻿using Avalonia.Media.Imaging;
+﻿using Avalonia.Controls.Shapes;
+using Avalonia.Media.Imaging;
 using AvaloniaImageSelect.Services;
 using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -36,10 +37,11 @@ namespace AvaloniaImageSelect.ViewModels
                 _deleteWhenClose = _service.GetDeleteWhenClose();
                 if (Directory.Exists(_imageFolder))
                 {
-                    string[] extensions = {".JPG", ".HEIC"};
+                    //string[] extensions = { ".JPG" };
+                    string[] extensions = { ".JPG", ".HEIC" };
 
                     var files = Directory.EnumerateFiles(_imageFolder, "*.*")
-                        .Where(file => extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                        .Where(file => extensions.Contains(System.IO.Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
                         .ToArray();
                     if (files.Length > 0)
                     {
@@ -62,18 +64,19 @@ namespace AvaloniaImageSelect.ViewModels
 
         private Bitmap GetBitmap(string fileName)
         {
-            var extension = Path.GetExtension(fileName);
-            if (string.Equals(extension, ".HEIC",StringComparison.OrdinalIgnoreCase))
+            var extension = System.IO.Path.GetExtension(fileName);
+            if (string.Equals(extension, ".HEIC", StringComparison.OrdinalIgnoreCase))
             {
                 using (var magickImage = new MagickImage(fileName))
                 {
-                    magickImage.Format = MagickFormat.Jpeg;
+                    //magickImage.Format = MagickFormat.Jpeg;
 
                     Avalonia.Media.Imaging.Bitmap avaloniaBitmap = magickImage.ToWriteableBitmap();
                     return avaloniaBitmap;
                 }
             }
-            return new Bitmap(fileName);
+            return new Avalonia.Media.Imaging.Bitmap(fileName);
+
         }
 
 
@@ -157,19 +160,22 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void KeyEnter()
         {
-            var fileName = SetCurrentImageFileName();
+            var fileName = SetCurrentImageFileName(_images[CurrentIndex]);
             File.Copy(_images[CurrentIndex], fileName, true);
             MessageBox.ShowAsync("已添加当前照片", "", MessageBoxIcon.Success, MessageBoxButton.OK);
         }
 
-        private string SetCurrentImageFileName()
+        private string SetCurrentImageFileName(string currentFileName)
         {
-            var files = Directory.GetFiles(_imageFolder, _prefixDate + "*.JPG", System.IO.SearchOption.TopDirectoryOnly);
-            if (files.Length == 0)
+            var extension = System.IO.Path.GetExtension(currentFileName);
+            var heicFiles = Directory.GetFiles(_imageFolder, _prefixDate + "*.HEIC", System.IO.SearchOption.TopDirectoryOnly);
+            var jpgFiles = Directory.GetFiles(_imageFolder, _prefixDate + "*.JPG", System.IO.SearchOption.TopDirectoryOnly);
+            var filesCount = heicFiles.Length + jpgFiles.Length;
+            if (filesCount == 0)
             {
-                return System.IO.Path.Combine(_imageFolder, _prefixDate + ".JPG");
+                return System.IO.Path.Combine(_imageFolder, _prefixDate + extension);
             }
-            return System.IO.Path.Combine(_imageFolder, _prefixDate + "-" + (files.Length) + ".JPG");
+            return System.IO.Path.Combine(_imageFolder, _prefixDate + "-" + (filesCount) + extension);
         }
 
         private void SetImage()
