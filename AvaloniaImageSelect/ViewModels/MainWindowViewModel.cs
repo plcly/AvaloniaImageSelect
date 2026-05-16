@@ -36,7 +36,7 @@ namespace AvaloniaImageSelect.ViewModels
                 _deleteWhenClose = _service.GetDeleteWhenClose();
                 if (Directory.Exists(_imageFolder))
                 {
-                    string[] extensions = { ".HEIC"};
+                    string[] extensions = {".JPG", ".HEIC"};
 
                     var files = Directory.EnumerateFiles(_imageFolder, "*.*")
                         .Where(file => extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
