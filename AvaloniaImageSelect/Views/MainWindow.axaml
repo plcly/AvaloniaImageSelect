@@ -7,11 +7,10 @@
     xmlns:u="https://irihi.tech/ursa"
     xmlns:vm="using:AvaloniaImageSelect.ViewModels"
     Title="{Binding Title}"
-    d:DesignHeight="1080"
-    d:DesignWidth="1520"
     x:DataType="vm:MainWindowViewModel"
     Closing="Window_Closing"
     Icon="/Assets/image.ico"
+    WindowState="Maximized"
     mc:Ignorable="d">
     <!--<Window.Resources>
         <Animation
@@ -50,8 +49,22 @@
                 <MenuItem Header="退出" />
             </MenuItem>
         </Menu>
-        <TextBox DockPanel.Dock="Top" Text="{Binding PrefixDate}">
-        </TextBox>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+            <Label
+                Margin="5,0,0,0"
+                VerticalAlignment="Center"
+                Content="日期: " />
+            <TextBox Text="{Binding PrefixDate}">
+            </TextBox>
+            <Label
+                Margin="5,0,0,0"
+                VerticalAlignment="Center"
+                Content="图片顺序: " />
+            <TextBox Text="{Binding CurrentIndex}">
+            </TextBox>
+        </StackPanel>
+
+
 
         <Grid DockPanel.Dock="Bottom">
             <u:ImageViewer Name="ImgView" Source="{Binding CurrentImage}">

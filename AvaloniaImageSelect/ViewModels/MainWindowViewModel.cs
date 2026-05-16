@@ -1,15 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Avalonia.Animation;
-using Avalonia.Controls;
-using Avalonia.Media.Imaging;
+﻿using Avalonia.Media.Imaging;
 using AvaloniaImageSelect.Services;
 using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualBasic.FileIO;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Ursa.Controls;
 
 namespace AvaloniaImageSelect.ViewModels
@@ -20,7 +20,7 @@ namespace AvaloniaImageSelect.ViewModels
         private string _imageFolder;
         private string _imageDestinationFolder;
         private Dictionary<int, string> _images = new();
-        private int _currentIndex = 1;
+        //private int _currentIndex = 1;
         private bool _deleteWhenClose;
 
         //public Animation NextAnimation { get; set; }
@@ -36,7 +36,11 @@ namespace AvaloniaImageSelect.ViewModels
                 _deleteWhenClose = _service.GetDeleteWhenClose();
                 if (Directory.Exists(_imageFolder))
                 {
-                    var files = Directory.GetFiles(_imageFolder, "*.JPG");
+                    string[] extensions = { ".HEIC"};
+
+                    var files = Directory.EnumerateFiles(_imageFolder, "*.*")
+                        .Where(file => extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                        .ToArray();
                     if (files.Length > 0)
                     {
                         for (int i = 0; i < files.Length; i++)
@@ -44,18 +48,55 @@ namespace AvaloniaImageSelect.ViewModels
                             _images.Add(i + 1, files[i]);
                         }
                     }
+                    else
+                    {
+                        MessageBox.ShowAsync("没有找到JPG文件", "", MessageBoxIcon.Warning, MessageBoxButton.OK);
+                        return;
+                    }
                 }
-                CurrentImage = new Bitmap(_images[1]);
+                CurrentImage = GetBitmap(_images[1]);
                 SetTitle();
                 PrefixDate = DateTime.Now.ToString("yyyyMMdd");
             }
         }
 
+        private Bitmap GetBitmap(string fileName)
+        {
+            var extension = Path.GetExtension(fileName);
+            if (string.Equals(extension, ".HEIC",StringComparison.OrdinalIgnoreCase))
+            {
+                using (var magickImage = new MagickImage(fileName))
+                {
+                    magickImage.Format = MagickFormat.Jpeg;
+
+                    Avalonia.Media.Imaging.Bitmap avaloniaBitmap = magickImage.ToWriteableBitmap();
+                    return avaloniaBitmap;
+                }
+            }
+            return new Bitmap(fileName);
+        }
+
+
         [ObservableProperty]
         private Bitmap _currentImage;
-        
+
         [ObservableProperty]
         private string _prefixDate;
+
+        private int _currentIndex = 1;
+
+        public int CurrentIndex
+        {
+            get => _currentIndex;
+            set
+            {
+                SetProperty(ref _currentIndex, value);
+                SetImage();
+            }
+
+        }
+
+
 
 
         [ObservableProperty]
@@ -63,9 +104,9 @@ namespace AvaloniaImageSelect.ViewModels
 
         public void SetTitle()
         {
-            if (_images.Count > 0 && _images.ContainsKey(_currentIndex))
+            if (_images.Count > 0 && _images.TryGetValue(CurrentIndex, out string? filename))
             {
-                Title = $"{_images[_currentIndex]}({_currentIndex}/{_images.Count})";
+                Title = $"{filename}({CurrentIndex}/{_images.Count})";
             }
         }
 
@@ -94,36 +135,30 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void NextImage(ImageViewer image)
         {
-            if (_currentIndex < _images.Count)
+            if (CurrentIndex < _images.Count)
             {
-                _currentIndex++;
+                CurrentIndex++;
             }
 
-            CurrentImage = new Bitmap(_images[_currentIndex]);
-            GC.Collect();
-            //NextAnimation.RunAsync(image);
-            SetTitle();
+            SetImage();
         }
 
         [RelayCommand]
         private void PreImage(ImageViewer image)
         {
-            if (_currentIndex > 1)
+            if (CurrentIndex > 1)
             {
-                _currentIndex--;
+                CurrentIndex--;
             }
 
-            CurrentImage = new Bitmap(_images[_currentIndex]);
-            GC.Collect();
-            //PreAnimation.RunAsync(image);
-            SetTitle();
+            SetImage();
         }
-        
+
         [RelayCommand]
         private void KeyEnter()
         {
             var fileName = SetCurrentImageFileName();
-            File.Copy(_images[_currentIndex],fileName, true);
+            File.Copy(_images[CurrentIndex], fileName, true);
             MessageBox.ShowAsync("已添加当前照片", "", MessageBoxIcon.Success, MessageBoxButton.OK);
         }
 
@@ -137,6 +172,13 @@ namespace AvaloniaImageSelect.ViewModels
             return System.IO.Path.Combine(_imageFolder, _prefixDate + "-" + (files.Length) + ".JPG");
         }
 
+        private void SetImage()
+        {
+            CurrentImage = GetBitmap(_images[CurrentIndex]);
+            GC.Collect();
+            //PreAnimation.RunAsync(image);
+            SetTitle();
+        }
         public void Closing()
         {
             if (_deleteWhenClose)
