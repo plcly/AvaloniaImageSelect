@@ -38,7 +38,7 @@ namespace AvaloniaImageSelect.ViewModels
                 if (Directory.Exists(_imageFolder))
                 {
                     //string[] extensions = { ".JPG" };
-                    string[] extensions = { ".JPG", ".HEIC" };
+                    string[] extensions = { ".JPG", ".HEIC", ".MP4" };
 
                     var files = Directory.EnumerateFiles(_imageFolder, "*.*")
                         .Where(file => extensions.Contains(System.IO.Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
@@ -69,14 +69,118 @@ namespace AvaloniaImageSelect.ViewModels
             {
                 using (var magickImage = new MagickImage(fileName))
                 {
-                    //magickImage.Format = MagickFormat.Jpeg;
-
                     Avalonia.Media.Imaging.Bitmap avaloniaBitmap = magickImage.ToWriteableBitmap();
                     return avaloniaBitmap;
                 }
             }
+            if (string.Equals(extension, ".MP4", StringComparison.OrdinalIgnoreCase))
+            {
+                return GetVideoFirstFrame(fileName);
+            }
+            // JPG文件：检查是否为小米动图（末尾嵌入了MP4视频）
+            if (string.Equals(extension, ".JPG", StringComparison.OrdinalIgnoreCase))
+            {
+                int videoOffset = GetEmbeddedVideoOffset(fileName);
+                if (videoOffset >= 0)
+                {
+                    return GetVideoFirstFrameAtOffset(fileName, videoOffset);
+                }
+            }
             return new Avalonia.Media.Imaging.Bitmap(fileName);
+        }
 
+        /// <summary>
+        /// 从MP4视频文件提取第一帧
+        /// </summary>
+        private Bitmap GetVideoFirstFrame(string fileName)
+        {
+            try
+            {
+                using (var collection = new MagickImageCollection())
+                {
+                    var settings = new MagickReadSettings
+                    {
+                        FrameIndex = 0,
+                        FrameCount = 1
+                    };
+                    collection.Read(fileName, settings);
+
+                    if (collection.Count > 0)
+                    {
+                        using (var frame = collection[0])
+                        {
+                            frame.Format = MagickFormat.Jpeg;
+                            return frame.ToWriteableBitmap();
+                        }
+                    }
+                }
+            }
+            catch { }
+            return new Avalonia.Media.Imaging.Bitmap(fileName);
+        }
+
+        /// <summary>
+        /// 从小米动图（JPG+嵌入视频）中提取视频第一帧
+        /// </summary>
+        private Bitmap GetVideoFirstFrameAtOffset(string fileName, int videoOffset)
+        {
+            try
+            {
+                byte[] fileData = File.ReadAllBytes(fileName);
+                byte[] videoData = new byte[fileData.Length - videoOffset];
+                Array.Copy(fileData, videoOffset, videoData, 0, videoData.Length);
+
+                using (var collection = new MagickImageCollection())
+                {
+                    var settings = new MagickReadSettings
+                    {
+                        FrameIndex = 0,
+                        FrameCount = 1
+                    };
+                    collection.Read(videoData, settings);
+
+                    if (collection.Count > 0)
+                    {
+                        using (var frame = collection[0])
+                        {
+                            frame.Format = MagickFormat.Jpeg;
+                            return frame.ToWriteableBitmap();
+                        }
+                    }
+                }
+            }
+            catch { }
+            // 兜底：加载JPG静态部分
+            return new Avalonia.Media.Imaging.Bitmap(fileName);
+        }
+
+        /// <summary>
+        /// 检测小米动图中嵌入的MP4视频数据偏移量
+        /// 小米动图格式：标准JPG数据 + MP4视频数据（ftyp标记）
+        /// </summary>
+        private int GetEmbeddedVideoOffset(string fileName)
+        {
+            try
+            {
+                byte[] data = File.ReadAllBytes(fileName);
+                byte[] ftyp = { (byte)'f', (byte)'t', (byte)'y', (byte)'p' };
+                // 从文件末尾向前搜索，小米动图的视频数据在文件尾部
+                for (int i = data.Length - 4; i >= 0; i--)
+                {
+                    if (data[i] == ftyp[0] && data[i + 1] == ftyp[1]
+                        && data[i + 2] == ftyp[2] && data[i + 3] == ftyp[3])
+                    {
+                        // ftyp 前4字节是box size，回退4字节得到MP4起始位置
+                        int offset = i - 4;
+                        if (offset >= 0)
+                        {
+                            return offset;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return -1;
         }
 
 
@@ -170,7 +274,8 @@ namespace AvaloniaImageSelect.ViewModels
             var extension = System.IO.Path.GetExtension(currentFileName);
             var heicFiles = Directory.GetFiles(_imageFolder, _prefixDate + "*.HEIC", System.IO.SearchOption.TopDirectoryOnly);
             var jpgFiles = Directory.GetFiles(_imageFolder, _prefixDate + "*.JPG", System.IO.SearchOption.TopDirectoryOnly);
-            var filesCount = heicFiles.Length + jpgFiles.Length;
+            var mp4Files = Directory.GetFiles(_imageFolder, _prefixDate + "*.MP4", System.IO.SearchOption.TopDirectoryOnly);
+            var filesCount = heicFiles.Length + jpgFiles.Length + mp4Files.Length;
             if (filesCount == 0)
             {
                 return System.IO.Path.Combine(_imageFolder, _prefixDate + extension);
