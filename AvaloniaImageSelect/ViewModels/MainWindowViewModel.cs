@@ -1,5 +1,4 @@
-﻿using Avalonia.Controls.Shapes;
-using Avalonia.Media.Imaging;
+﻿using Avalonia.Media.Imaging;
 using AvaloniaImageSelect.Services;
 using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -177,14 +176,9 @@ namespace AvaloniaImageSelect.ViewModels
         private Bitmap CreateVideoPlaceholder()
         {
             const int w = 400, h = 300;
-            using (var image = new MagickImage(MagickColors.Black, w, h))
+            using (var image = new MagickImage(MagickColors.DarkGray, w, h))
             {
-                new Drawables()
-                    .FontPointSize(48)
-                    .Font("Arial")
-                    .FillColor(MagickColors.White)
-                    .Text(w / 2, h / 2, "🎬 Video")
-                    .Draw(image);
+                image.Annotate("Video", Gravity.Center);
                 return image.ToWriteableBitmap();
             }
         }
