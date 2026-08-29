@@ -21,7 +21,6 @@ namespace AvaloniaImageSelect.ViewModels
         private string _imageFolder;
         private string _imageDestinationFolder;
         private Dictionary<int, string> _images = new();
-        //private int _currentIndex = 1;
         private bool _deleteWhenClose;
 
         //public Animation NextAnimation { get; set; }
@@ -62,19 +61,23 @@ namespace AvaloniaImageSelect.ViewModels
             }
         }
 
+        [ObservableProperty]
+        private bool _isVideo;
+
         private Bitmap GetBitmap(string fileName)
         {
             var extension = System.IO.Path.GetExtension(fileName);
             if (string.Equals(extension, ".HEIC", StringComparison.OrdinalIgnoreCase))
             {
+                IsVideo = false;
                 using (var magickImage = new MagickImage(fileName))
                 {
-                    Avalonia.Media.Imaging.Bitmap avaloniaBitmap = magickImage.ToWriteableBitmap();
-                    return avaloniaBitmap;
+                    return magickImage.ToWriteableBitmap();
                 }
             }
             if (string.Equals(extension, ".MP4", StringComparison.OrdinalIgnoreCase))
             {
+                IsVideo = true;
                 return GetVideoFirstFrame(fileName);
             }
             // JPG文件：检查是否为小米动图（末尾嵌入了MP4视频）
@@ -83,75 +86,107 @@ namespace AvaloniaImageSelect.ViewModels
                 int videoOffset = GetEmbeddedVideoOffset(fileName);
                 if (videoOffset >= 0)
                 {
+                    IsVideo = true;
                     return GetVideoFirstFrameAtOffset(fileName, videoOffset);
                 }
             }
+            IsVideo = false;
             return new Avalonia.Media.Imaging.Bitmap(fileName);
         }
 
         /// <summary>
-        /// 从MP4视频文件提取第一帧
+        /// 从MP4视频文件提取第一帧（通过FFmpeg）
         /// </summary>
         private Bitmap GetVideoFirstFrame(string fileName)
         {
+            var tempPng = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
             try
             {
-                using (var collection = new MagickImageCollection())
+                var psi = new System.Diagnostics.ProcessStartInfo
                 {
-                    var settings = new MagickReadSettings
-                    {
-                        FrameIndex = 0,
-                        FrameCount = 1
-                    };
-                    collection.Read(fileName, settings);
-
-                    if (collection.Count > 0)
-                    {
-                        using (var frame = collection[0])
-                        {
-                            frame.Format = MagickFormat.Jpeg;
-                            return frame.ToWriteableBitmap();
-                        }
-                    }
+                    FileName = "ffmpeg",
+                    Arguments = $"-y -i \"{fileName}\" -vframes 1 -f image2 \"{tempPng}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardError = true
+                };
+                using (var proc = System.Diagnostics.Process.Start(psi))
+                {
+                    proc.WaitForExit(10000);
+                }
+                if (File.Exists(tempPng))
+                {
+                    var bmp = new Avalonia.Media.Imaging.Bitmap(tempPng);
+                    return bmp;
                 }
             }
             catch { }
+            finally
+            {
+                try { if (File.Exists(tempPng)) File.Delete(tempPng); } catch { }
+            }
+            // FFmpeg不可用时，生成一个带文字提示的占位图
+            return CreateVideoPlaceholder();
+        }
+
+        /// <summary>
+        /// 从小米动图（JPG+嵌入视频）中提取视频第一帧（通过FFmpeg）
+        /// </summary>
+        private Bitmap GetVideoFirstFrameAtOffset(string fileName, int videoOffset)
+        {
+            var tempMp4 = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mp4");
+            var tempPng = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
+            try
+            {
+                // 将嵌入的视频数据写入临时MP4文件
+                byte[] fileData = File.ReadAllBytes(fileName);
+                byte[] videoData = new byte[fileData.Length - videoOffset];
+                Array.Copy(fileData, videoOffset, videoData, 0, videoData.Length);
+                File.WriteAllBytes(tempMp4, videoData);
+
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = $"-y -i \"{tempMp4}\" -vframes 1 -f image2 \"{tempPng}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardError = true
+                };
+                using (var proc = System.Diagnostics.Process.Start(psi))
+                {
+                    proc.WaitForExit(10000);
+                }
+                if (File.Exists(tempPng))
+                {
+                    return new Avalonia.Media.Imaging.Bitmap(tempPng);
+                }
+            }
+            catch { }
+            finally
+            {
+                try { if (File.Exists(tempMp4)) File.Delete(tempMp4); } catch { }
+                try { if (File.Exists(tempPng)) File.Delete(tempPng); } catch { }
+            }
+            // FFmpeg不可用或提取失败，加载JPG静态部分
             return new Avalonia.Media.Imaging.Bitmap(fileName);
         }
 
         /// <summary>
-        /// 从小米动图（JPG+嵌入视频）中提取视频第一帧
+        /// 生成视频占位图（当FFmpeg不可用时）
         /// </summary>
-        private Bitmap GetVideoFirstFrameAtOffset(string fileName, int videoOffset)
+        private Bitmap CreateVideoPlaceholder()
         {
-            try
+            const int w = 400, h = 300;
+            using (var image = new MagickImage(MagickColors.Black, w, h))
             {
-                byte[] fileData = File.ReadAllBytes(fileName);
-                byte[] videoData = new byte[fileData.Length - videoOffset];
-                Array.Copy(fileData, videoOffset, videoData, 0, videoData.Length);
-
-                using (var collection = new MagickImageCollection())
-                {
-                    var settings = new MagickReadSettings
-                    {
-                        FrameIndex = 0,
-                        FrameCount = 1
-                    };
-                    collection.Read(videoData, settings);
-
-                    if (collection.Count > 0)
-                    {
-                        using (var frame = collection[0])
-                        {
-                            frame.Format = MagickFormat.Jpeg;
-                            return frame.ToWriteableBitmap();
-                        }
-                    }
-                }
+                new Drawables()
+                    .FontPointSize(48)
+                    .Font("Arial")
+                    .FillColor(MagickColors.White)
+                    .Text(w / 2, h / 2, "🎬 Video")
+                    .Draw(image);
+                return image.ToWriteableBitmap();
             }
-            catch { }
-            // 兜底：加载JPG静态部分
-            return new Avalonia.Media.Imaging.Bitmap(fileName);
         }
 
         /// <summary>

@@ -83,6 +83,21 @@
                     </KeyBinding>
                 </u:ImageViewer.KeyBindings>
             </u:ImageViewer>
+            <!-- 视频/动图播放按钮标识 -->
+            <Border
+                IsVisible="{Binding IsVideo}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Width="80" Height="80"
+                CornerRadius="40"
+                Background="#80000000">
+                <TextBlock
+                    Text="▶"
+                    FontSize="36"
+                    Foreground="White"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center" />
+            </Border>
             <u:OverlayDialogHost HostId="LocalHost" />
         </Grid>
     </DockPanel>
