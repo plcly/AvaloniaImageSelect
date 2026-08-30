@@ -20,6 +20,7 @@ namespace AvaloniaImageSelect.ViewModels
             ImageFolder = _service.GetImageFolder();
             DestinationImageFolder = _service.GetDestinationImageFolder();
             DeleteWhenClose = _service.GetDeleteWhenClose();
+            FfmpegPath = _service.GetFfmpegPath();
         }
 
         [ObservableProperty]
@@ -30,6 +31,12 @@ namespace AvaloniaImageSelect.ViewModels
         
         [ObservableProperty]
         private bool _deleteWhenClose;
+
+        /// <summary>
+        /// FFmpeg 可执行文件路径（或所在目录）。视频预览需要它，留空则自动查找。
+        /// </summary>
+        [ObservableProperty]
+        private string _ffmpegPath;
 
         [RelayCommand]
         private void PathSave()
@@ -56,6 +63,14 @@ namespace AvaloniaImageSelect.ViewModels
                 Comment = "关闭窗口是否删除文件"
             };
             _service.InsertOrUpdateSetting(deleteWhenClose);
+
+            var ffmpegPath = new DbSetting
+            {
+                ConfigName = "FfmpegPath",
+                ConfigValue = FfmpegPath ?? string.Empty,
+                Comment = "FFmpeg 路径，用于视频预览"
+            };
+            _service.InsertOrUpdateSetting(ffmpegPath);
         }
     }
 }

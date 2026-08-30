@@ -10,7 +10,7 @@
     d:DesignWidth="600"
     x:DataType="vm:UserSettingViewModel"
     mc:Ignorable="d">
-    <Grid RowDefinitions="*,*,*,*">
+    <Grid RowDefinitions="*,*,*,*,*">
         <TextBox
             Width="400"
             Margin="2"
@@ -30,8 +30,15 @@
             IsChecked="{Binding DeleteWhenClose}">
             关闭窗口时是否复制和删除图片
         </CheckBox>
-        <Button
+        <TextBox
             Grid.Row="3"
+            Width="400"
+            Margin="2"
+            Text="{Binding FfmpegPath}"
+            Watermark="FFmpeg 路径（视频/动图预览需要，留空则自动查找）">
+        </TextBox>
+        <Button
+            Grid.Row="4"
             Command="{Binding PathSaveCommand}"
             Content="确定">
         </Button>

@@ -44,6 +44,16 @@ namespace AvaloniaImageSelect.Services
                 .FirstOrDefault(p => p.ConfigName == "DestinationImageFolder")?.ConfigValue ?? string.Empty;
         }
 
+        /// <summary>
+        /// 获取 FFmpeg 可执行文件路径或所在目录，用于视频抽帧预览。
+        /// 未配置时返回空字符串，此时程序会自动在环境变量、程序目录和 PATH 中查找。
+        /// </summary>
+        public string GetFfmpegPath()
+        {
+            return _sqliteDb.Table<DbSetting>()
+                .FirstOrDefault(p => p.ConfigName == "FfmpegPath")?.ConfigValue ?? string.Empty;
+        }
+
         public bool GetDeleteWhenClose()
         {
             var deleteWhenClose =  _sqliteDb.Table<DbSetting>()
