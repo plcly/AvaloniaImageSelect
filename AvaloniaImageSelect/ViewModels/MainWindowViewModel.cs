@@ -265,7 +265,8 @@ namespace AvaloniaImageSelect.ViewModels
                 CanResize = false,
                 StyleClass = null,
             };
-            OverlayDialog.ShowModal<UserSettingView, UserSettingViewModel>(new UserSettingViewModel(), "LocalHost", options);
+            OverlayDialog.ShowStandardAsync<UserSettingView, UserSettingViewModel>(new UserSettingViewModel(), "LocalHost", options);
+            
         }
 
         [RelayCommand]
