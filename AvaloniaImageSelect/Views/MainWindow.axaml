@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:u="https://irihi.tech/ursa"
+    xmlns:vlc="using:LibVLCSharp.Avalonia"
     xmlns:vm="using:AvaloniaImageSelect.ViewModels"
     Title="{Binding Title}"
     x:DataType="vm:MainWindowViewModel"
@@ -16,34 +17,9 @@
         <KeyBinding Command="{Binding PreImageCommand}" Gesture="Left" />
         <KeyBinding Command="{Binding NextImageCommand}" Gesture="Right" />
         <KeyBinding Command="{Binding KeyEnterCommand}" Gesture="Enter" />
+        <KeyBinding Command="{Binding PlayVideoCommand}" Gesture="Space" />
     </Window.KeyBindings>
-    <!--<Window.Resources>
-        <Animation
-            x:Key="NextImageAnimation"
-            x:SetterTargetType="u:ImageViewer"
-            Easing="ExponentialEaseOut"
-            IterationCount="1"
-            Duration="0:0:0.05">
-            <KeyFrame Cue="0%">
-                <Setter Property="TranslateTransform.X" Value="400" />
-            </KeyFrame>
-        </Animation>
-        <Animation
-            x:Key="PreImageAnimation"
-            x:SetterTargetType="u:ImageViewer"
-            Easing="ExponentialEaseOut"
-            IterationCount="1"
-            Duration="0:0:0.05">
-            <KeyFrame Cue="0%">
-                <Setter Property="TranslateTransform.X" Value="-400" />
-            </KeyFrame>
-        </Animation>
-    </Window.Resources>-->
     <Design.DataContext>
-        <!--
-            This only sets the DataContext for the previewer in an IDE,
-            to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs)
-        -->
         <vm:MainWindowViewModel />
     </Design.DataContext>
     <DockPanel LastChildFill="True">
@@ -59,22 +35,29 @@
                 Margin="5,0,0,0"
                 VerticalAlignment="Center"
                 Content="日期: " />
-            <TextBox Text="{Binding PrefixDate}">
-            </TextBox>
+            <TextBox Text="{Binding PrefixDate}" />
             <Label
                 Margin="5,0,0,0"
                 VerticalAlignment="Center"
                 Content="图片顺序: " />
-            <TextBox Text="{Binding CurrentIndex}">
-            </TextBox>
+            <TextBox Text="{Binding CurrentIndex}" />
+            <!-- 视频播放状态提示 -->
+            <Label
+                IsVisible="{Binding IsPlaying}"
+                Margin="10,0,0,0"
+                VerticalAlignment="Center"
+                Foreground="Red"
+                Content="▶ 播放中 (空格暂停)" />
         </StackPanel>
-
-
 
         <Grid DockPanel.Dock="Bottom">
             <u:ImageViewer
                 Name="ImgView"
+                IsVisible="{Binding !IsPlaying}"
                 Source="{Binding CurrentImage}" />
+            <vlc:VideoView
+                IsVisible="{Binding IsPlaying}"
+                MediaPlayer="{Binding MediaPlayer}" />
             <!-- 视频/动图播放按钮标识 -->
             <Border
                 IsVisible="{Binding IsVideo}"
@@ -93,5 +76,4 @@
             <u:OverlayDialogHost HostId="LocalHost" />
         </Grid>
     </DockPanel>
-
 </Window>

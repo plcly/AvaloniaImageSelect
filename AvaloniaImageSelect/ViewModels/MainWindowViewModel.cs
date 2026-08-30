@@ -1,14 +1,15 @@
-﻿using Avalonia.Media.Imaging;
+using Avalonia.Media.Imaging;
 using AvaloniaImageSelect.Services;
 using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ImageMagick;
+using LibVLCSharp.Shared;
+using LibVLCSharp.Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Ursa.Controls;
@@ -22,9 +23,8 @@ namespace AvaloniaImageSelect.ViewModels
         private string _imageDestinationFolder;
         private Dictionary<int, string> _images = new();
         private bool _deleteWhenClose;
-
-        //public Animation NextAnimation { get; set; }
-        //public Animation PreAnimation { get; set; }
+        private LibVLC? _libVLC;
+        private MediaPlayer? _mediaPlayer;
 
         public MainWindowViewModel()
         {
@@ -36,7 +36,6 @@ namespace AvaloniaImageSelect.ViewModels
                 _deleteWhenClose = _service.GetDeleteWhenClose();
                 if (Directory.Exists(_imageFolder))
                 {
-                    //string[] extensions = { ".JPG" };
                     string[] extensions = { ".JPG", ".HEIC", ".MP4" };
 
                     var files = Directory.EnumerateFiles(_imageFolder, "*.*")
@@ -63,6 +62,16 @@ namespace AvaloniaImageSelect.ViewModels
 
         [ObservableProperty]
         private bool _isVideo;
+
+        [ObservableProperty]
+        private bool _isPlaying;
+
+        private MediaPlayer? _mediaPlayerProp;
+        public MediaPlayer? MediaPlayer
+        {
+            get => _mediaPlayerProp;
+            set => SetProperty(ref _mediaPlayerProp, value);
+        }
 
         private Bitmap GetBitmap(string fileName)
         {
@@ -125,7 +134,6 @@ namespace AvaloniaImageSelect.ViewModels
             {
                 try { if (File.Exists(tempPng)) File.Delete(tempPng); } catch { }
             }
-            // FFmpeg不可用时，生成一个带文字提示的占位图
             return CreateVideoPlaceholder();
         }
 
@@ -138,7 +146,6 @@ namespace AvaloniaImageSelect.ViewModels
             var tempPng = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");
             try
             {
-                // 将嵌入的视频数据写入临时MP4文件
                 byte[] fileData = File.ReadAllBytes(fileName);
                 byte[] videoData = new byte[fileData.Length - videoOffset];
                 Array.Copy(fileData, videoOffset, videoData, 0, videoData.Length);
@@ -167,7 +174,6 @@ namespace AvaloniaImageSelect.ViewModels
                 try { if (File.Exists(tempMp4)) File.Delete(tempMp4); } catch { }
                 try { if (File.Exists(tempPng)) File.Delete(tempPng); } catch { }
             }
-            // FFmpeg不可用或提取失败，加载JPG静态部分
             return new Avalonia.Media.Imaging.Bitmap(fileName);
         }
 
@@ -186,7 +192,6 @@ namespace AvaloniaImageSelect.ViewModels
 
         /// <summary>
         /// 检测小米动图中嵌入的MP4视频数据偏移量
-        /// 小米动图格式：标准JPG数据 + MP4视频数据（ftyp标记）
         /// </summary>
         private int GetEmbeddedVideoOffset(string fileName)
         {
@@ -194,13 +199,11 @@ namespace AvaloniaImageSelect.ViewModels
             {
                 byte[] data = File.ReadAllBytes(fileName);
                 byte[] ftyp = { (byte)'f', (byte)'t', (byte)'y', (byte)'p' };
-                // 从文件末尾向前搜索，小米动图的视频数据在文件尾部
                 for (int i = data.Length - 4; i >= 0; i--)
                 {
                     if (data[i] == ftyp[0] && data[i + 1] == ftyp[1]
                         && data[i + 2] == ftyp[2] && data[i + 3] == ftyp[3])
                     {
-                        // ftyp 前4字节是box size，回退4字节得到MP4起始位置
                         int offset = i - 4;
                         if (offset >= 0)
                         {
@@ -230,11 +233,7 @@ namespace AvaloniaImageSelect.ViewModels
                 SetProperty(ref _currentIndex, value);
                 SetImage();
             }
-
         }
-
-
-
 
         [ObservableProperty]
         private string _title;
@@ -272,6 +271,7 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void NextImage()
         {
+            StopPlayback();
             if (CurrentIndex < _images.Count)
             {
                 CurrentIndex++;
@@ -282,6 +282,7 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void PreImage()
         {
+            StopPlayback();
             if (CurrentIndex > 1)
             {
                 CurrentIndex--;
@@ -292,25 +293,79 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void KeyEnter()
         {
-            var currentFile = _images[CurrentIndex];
-            // 视频/动图文件：用系统默认播放器打开
-            if (IsVideo)
+            // 回车：选中当前照片/视频，复制到目标目录
+            var fileName = SetCurrentImageFileName(_images[CurrentIndex]);
+            File.Copy(_images[CurrentIndex], fileName, true);
+            MessageBox.ShowAsync("已添加当前照片", "", MessageBoxIcon.Success, MessageBoxButton.OK);
+        }
+
+        [RelayCommand]
+        private void PlayVideo()
+        {
+            // 空格键：视频/动图播放/暂停
+            if (!IsVideo) return;
+
+            if (IsPlaying && _mediaPlayer != null)
+            {
+                if (_mediaPlayer.IsPlaying)
+                    _mediaPlayer.Pause();
+                else
+                    _mediaPlayer.Play();
+                return;
+            }
+
+            // 开始播放
+            try
+            {
+                if (_libVLC == null)
+                    _libVLC = new LibVLC();
+
+                StopPlayback();
+
+                var currentFile = _images[CurrentIndex];
+                var extension = System.IO.Path.GetExtension(currentFile);
+
+                string playFile = currentFile;
+
+                // 小米动图：需要先提取嵌入的视频数据到临时文件
+                if (string.Equals(extension, ".JPG", StringComparison.OrdinalIgnoreCase))
+                {
+                    int videoOffset = GetEmbeddedVideoOffset(currentFile);
+                    if (videoOffset >= 0)
+                    {
+                        byte[] fileData = File.ReadAllBytes(currentFile);
+                        byte[] videoData = new byte[fileData.Length - videoOffset];
+                        Array.Copy(fileData, videoOffset, videoData, 0, videoData.Length);
+                        var tempMp4 = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mp4");
+                        File.WriteAllBytes(tempMp4, videoData);
+                        playFile = tempMp4;
+                    }
+                }
+
+                var media = new Media(_libVLC, new Uri(playFile));
+                _mediaPlayer = new MediaPlayer(media);
+                MediaPlayer = _mediaPlayer;
+                IsPlaying = true;
+                _mediaPlayer.Play();
+            }
+            catch { }
+        }
+
+        private void StopPlayback()
+        {
+            if (_mediaPlayer != null)
             {
                 try
                 {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = currentFile,
-                        UseShellExecute = true
-                    });
+                    if (_mediaPlayer.IsPlaying)
+                        _mediaPlayer.Stop();
+                    _mediaPlayer.Dispose();
+                    _mediaPlayer = null;
+                    MediaPlayer = null;
                 }
                 catch { }
-                return;
             }
-            // 图片文件：复制到目标目录
-            var fileName = SetCurrentImageFileName(currentFile);
-            File.Copy(currentFile, fileName, true);
-            MessageBox.ShowAsync("已添加当前照片", "", MessageBoxIcon.Success, MessageBoxButton.OK);
+            IsPlaying = false;
         }
 
         private string SetCurrentImageFileName(string currentFileName)
@@ -331,11 +386,15 @@ namespace AvaloniaImageSelect.ViewModels
         {
             CurrentImage = GetBitmap(_images[CurrentIndex]);
             GC.Collect();
-            //PreAnimation.RunAsync(image);
             SetTitle();
         }
+
         public void Closing()
         {
+            StopPlayback();
+            _libVLC?.Dispose();
+            _libVLC = null;
+
             if (_deleteWhenClose)
             {
                 var allFile = Directory.GetFiles(_imageFolder);
