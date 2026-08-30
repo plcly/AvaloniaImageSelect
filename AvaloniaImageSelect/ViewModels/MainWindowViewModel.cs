@@ -344,6 +344,8 @@ namespace AvaloniaImageSelect.ViewModels
 
                 var media = new Media(_libVLC, new Uri(playFile));
                 _mediaPlayer = new MediaPlayer(media);
+                _mediaPlayer.EndReached += OnMediaEndReached;
+                _mediaPlayer.Stopped += OnMediaStopped;
                 MediaPlayer = _mediaPlayer;
                 IsPlaying = true;
                 _mediaPlayer.Play();
@@ -353,19 +355,40 @@ namespace AvaloniaImageSelect.ViewModels
 
         private void StopPlayback()
         {
+            // 先隐藏VideoView，避免它继续引用MediaPlayer
+            IsPlaying = false;
+
             if (_mediaPlayer != null)
             {
                 try
                 {
+                    _mediaPlayer.EndReached -= OnMediaEndReached;
+                    _mediaPlayer.Stopped -= OnMediaStopped;
                     if (_mediaPlayer.IsPlaying)
                         _mediaPlayer.Stop();
-                    _mediaPlayer.Dispose();
-                    _mediaPlayer = null;
-                    MediaPlayer = null;
                 }
                 catch { }
+
+                var player = _mediaPlayer;
+                _mediaPlayer = null;
+                MediaPlayer = null;
+
+                // 延迟释放，给VideoView时间解绑
+                System.Threading.Tasks.Task.Delay(100).ContinueWith(_ =>
+                {
+                    try { player.Dispose(); } catch { }
+                });
             }
-            IsPlaying = false;
+        }
+
+        private void OnMediaEndReached(object? sender, EventArgs e)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => StopPlayback());
+        }
+
+        private void OnMediaStopped(object? sender, EventArgs e)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => IsPlaying = false);
         }
 
         private string SetCurrentImageFileName(string currentFileName)
