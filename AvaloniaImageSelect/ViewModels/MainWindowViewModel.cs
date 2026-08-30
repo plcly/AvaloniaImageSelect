@@ -4,7 +4,7 @@ using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ImageMagick;
-using LibVLCSharp;
+using LibVLCSharp.Shared;
 using LibVLCSharp.Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualBasic.FileIO;
@@ -24,7 +24,7 @@ namespace AvaloniaImageSelect.ViewModels
         private Dictionary<int, string> _images = new();
         private bool _deleteWhenClose;
         private LibVLC? _libVLC;
-        private LibVLCSharp.MediaPlayer? _mediaPlayer;
+        private MediaPlayer? _mediaPlayer;
 
         //public Animation NextAnimation { get; set; }
         //public Animation PreAnimation { get; set; }
@@ -70,8 +70,8 @@ namespace AvaloniaImageSelect.ViewModels
         [ObservableProperty]
         private bool _isPlaying;
 
-        private LibVLCSharp.MediaPlayer? _mediaPlayerProp;
-        public LibVLCSharp.MediaPlayer? MediaPlayer
+        private MediaPlayer? _mediaPlayerProp;
+        public MediaPlayer? MediaPlayer
         {
             get => _mediaPlayerProp;
             set => SetProperty(ref _mediaPlayerProp, value);
@@ -349,7 +349,7 @@ namespace AvaloniaImageSelect.ViewModels
                 StopPlayback();
 
                 var media = new Media(_libVLC, new Uri(fileName));
-                _mediaPlayer = new LibVLCSharp.MediaPlayer(media);
+                _mediaPlayer = new MediaPlayer(media);
                 MediaPlayer = _mediaPlayer;
                 IsPlaying = true;
                 _mediaPlayer.Play();
