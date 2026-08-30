@@ -20,7 +20,6 @@ namespace AvaloniaImageSelect.Views
         public MainWindow()
         {
             InitializeComponent();
-            ImgView.AttachedToVisualTree += (s, e) => ImgView.Focus();
         }
 
         private void Window_Closing(object? sender, Avalonia.Controls.WindowClosingEventArgs e)
