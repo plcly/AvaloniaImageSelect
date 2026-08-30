@@ -41,8 +41,5 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
     <PackageReference Include="Semi.Avalonia" Version="12.0.1" />
     <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-    <PackageReference Include="LibVLCSharp" Version="3.8.5" />
-    <PackageReference Include="LibVLCSharp.Avalonia" Version="3.8.5" />
-    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
   </ItemGroup>
 </Project>

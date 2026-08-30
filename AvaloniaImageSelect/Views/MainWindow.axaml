@@ -5,7 +5,6 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:u="https://irihi.tech/ursa"
-    xmlns:vlc="using:LibVLCSharp.Avalonia"
     xmlns:vm="using:AvaloniaImageSelect.ViewModels"
     Title="{Binding Title}"
     x:DataType="vm:MainWindowViewModel"
@@ -17,7 +16,6 @@
         <KeyBinding Command="{Binding PreImageCommand}" Gesture="Left" />
         <KeyBinding Command="{Binding NextImageCommand}" Gesture="Right" />
         <KeyBinding Command="{Binding KeyEnterCommand}" Gesture="Enter" />
-        <KeyBinding Command="{Binding TogglePlayCommand}" Gesture="Space" />
     </Window.KeyBindings>
     <!--<Window.Resources>
         <Animation
@@ -76,11 +74,7 @@
         <Grid DockPanel.Dock="Bottom">
             <u:ImageViewer
                 Name="ImgView"
-                IsVisible="{Binding !IsPlaying}"
                 Source="{Binding CurrentImage}" />
-            <vlc:VideoView
-                IsVisible="{Binding IsPlaying}"
-                MediaPlayer="{Binding MediaPlayer}" />
             <!-- 视频/动图播放按钮标识 -->
             <Border
                 IsVisible="{Binding IsVideo}"

@@ -4,12 +4,11 @@ using AvaloniaImageSelect.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ImageMagick;
-using LibVLCSharp.Shared;
-using LibVLCSharp.Avalonia;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Ursa.Controls;
@@ -23,8 +22,6 @@ namespace AvaloniaImageSelect.ViewModels
         private string _imageDestinationFolder;
         private Dictionary<int, string> _images = new();
         private bool _deleteWhenClose;
-        private LibVLC? _libVLC;
-        private MediaPlayer? _mediaPlayer;
 
         //public Animation NextAnimation { get; set; }
         //public Animation PreAnimation { get; set; }
@@ -66,16 +63,6 @@ namespace AvaloniaImageSelect.ViewModels
 
         [ObservableProperty]
         private bool _isVideo;
-
-        [ObservableProperty]
-        private bool _isPlaying;
-
-        private MediaPlayer? _mediaPlayerProp;
-        public MediaPlayer? MediaPlayer
-        {
-            get => _mediaPlayerProp;
-            set => SetProperty(ref _mediaPlayerProp, value);
-        }
 
         private Bitmap GetBitmap(string fileName)
         {
@@ -285,7 +272,6 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void NextImage()
         {
-            StopPlayback();
             if (CurrentIndex < _images.Count)
             {
                 CurrentIndex++;
@@ -296,7 +282,6 @@ namespace AvaloniaImageSelect.ViewModels
         [RelayCommand]
         private void PreImage()
         {
-            StopPlayback();
             if (CurrentIndex > 1)
             {
                 CurrentIndex--;
@@ -308,70 +293,24 @@ namespace AvaloniaImageSelect.ViewModels
         private void KeyEnter()
         {
             var currentFile = _images[CurrentIndex];
-            var extension = System.IO.Path.GetExtension(currentFile);
-            // 视频/动图文件：按回车播放
+            // 视频/动图文件：用系统默认播放器打开
             if (IsVideo)
             {
-                PlayVideo(currentFile);
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = currentFile,
+                        UseShellExecute = true
+                    });
+                }
+                catch { }
                 return;
             }
             // 图片文件：复制到目标目录
             var fileName = SetCurrentImageFileName(currentFile);
             File.Copy(currentFile, fileName, true);
             MessageBox.ShowAsync("已添加当前照片", "", MessageBoxIcon.Success, MessageBoxButton.OK);
-        }
-
-        [RelayCommand]
-        private void TogglePlay()
-        {
-            if (!IsVideo) return;
-            if (IsPlaying && _mediaPlayer != null)
-            {
-                if (_mediaPlayer.IsPlaying)
-                    _mediaPlayer.Pause();
-                else
-                    _mediaPlayer.Play();
-            }
-            else
-            {
-                PlayVideo(_images[CurrentIndex]);
-            }
-        }
-
-        private void PlayVideo(string fileName)
-        {
-            try
-            {
-                if (_libVLC == null)
-                {
-                    _libVLC = new LibVLC();
-                }
-                StopPlayback();
-
-                var media = new Media(_libVLC, new Uri(fileName));
-                _mediaPlayer = new MediaPlayer(media);
-                MediaPlayer = _mediaPlayer;
-                IsPlaying = true;
-                _mediaPlayer.Play();
-            }
-            catch { }
-        }
-
-        private void StopPlayback()
-        {
-            if (_mediaPlayer != null)
-            {
-                try
-                {
-                    if (_mediaPlayer.IsPlaying)
-                        _mediaPlayer.Stop();
-                    _mediaPlayer.Dispose();
-                    _mediaPlayer = null;
-                    MediaPlayer = null;
-                }
-                catch { }
-            }
-            IsPlaying = false;
         }
 
         private string SetCurrentImageFileName(string currentFileName)
@@ -397,10 +336,6 @@ namespace AvaloniaImageSelect.ViewModels
         }
         public void Closing()
         {
-            StopPlayback();
-            _libVLC?.Dispose();
-            _libVLC = null;
-
             if (_deleteWhenClose)
             {
                 var allFile = Directory.GetFiles(_imageFolder);
