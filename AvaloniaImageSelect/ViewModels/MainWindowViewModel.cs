@@ -192,6 +192,7 @@ namespace AvaloniaImageSelect.ViewModels
 
         /// <summary>
         /// 检测小米动图中嵌入的MP4视频数据偏移量
+        /// 通过验证MP4 box size和ftyp brand来避免JPEG数据中的误匹配
         /// </summary>
         private int GetEmbeddedVideoOffset(string fileName)
         {
@@ -199,16 +200,33 @@ namespace AvaloniaImageSelect.ViewModels
             {
                 byte[] data = File.ReadAllBytes(fileName);
                 byte[] ftyp = { (byte)'f', (byte)'t', (byte)'y', (byte)'p' };
-                for (int i = data.Length - 4; i >= 0; i--)
+                for (int i = data.Length - 8; i >= 0; i--)
                 {
                     if (data[i] == ftyp[0] && data[i + 1] == ftyp[1]
                         && data[i + 2] == ftyp[2] && data[i + 3] == ftyp[3])
                     {
                         int offset = i - 4;
-                        if (offset >= 0)
+                        if (offset < 0) continue;
+
+                        // 验证MP4 box size：大端序4字节，应为合理值(>=8且<=10MB)
+                        uint boxSize = (uint)((data[offset] << 24) | (data[offset + 1] << 16)
+                            | (data[offset + 2] << 8) | data[offset + 3]);
+                        if (boxSize < 8 || boxSize > 10 * 1024 * 1024)
+                            continue;
+
+                        // 验证brand：ftyp后4字节应为合法的MP4品牌标识
+                        if (i + 7 < data.Length)
                         {
-                            return offset;
+                            string brand = System.Text.Encoding.ASCII.GetString(data, i + 4, 4);
+                            string[] validBrands = { "isom", "iso2", "mp41", "mp42", "avc1",
+                                "avci", "M4A ", "M4V ", "dash", "msdh", "msix", "NDAS",
+                                "f4v ", "kddi", "MMP4", "NDSC", "NDSH", "NDSM", "NDSP",
+                                "NDSS", "NDXC", "NDXH", "NDXM", "NDXP", "NDXS" };
+                            if (!validBrands.Contains(brand))
+                                continue;
                         }
+
+                        return offset;
                     }
                 }
             }
